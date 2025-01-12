@@ -18,6 +18,7 @@ fn main() {
                 match input[5..].trim() {
                     "exit" => println!("exit is a shell builtin"),
                     "echo" => println!("echo is a shell builtin"),
+                    "type" => println!("type is a shell builtin"),
                     _ => println!("{}: not found", input[5..].trim())
                 }
             }
