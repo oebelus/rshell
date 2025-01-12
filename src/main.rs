@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
+use std::process::exit;
 
 fn main() {
     loop {
@@ -11,20 +12,17 @@ fn main() {
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
 
-        let trimmed = input.trim();
-    
-        if trimmed.len() == 6 && trimmed.starts_with("exit") {
-            if trimmed.chars().last().unwrap() == '0' {
-                break;
+        match input.trim() {
+            input if input.starts_with("echo") => println!("{}", input[5..].trim()),
+            input if input.starts_with("type") => {
+                match input[5..].trim() {
+                    "exit" => println!("exit is a shell builtin"),
+                    "echo" => println!("echo is a shell builtin"),
+                    _ => println!("{}: not found", input[5..].trim())
+                }
             }
+            "exit 0" => exit(0),
+            _ => println!("{}: command not found", input.trim())
         }
-
-        else if trimmed.starts_with("echo") {
-            println!("{}", trimmed[5..].trim());
-        }
-
-        else {
-            println!("{}: command not found", input.trim());  
-        }  
     }
 }
