@@ -37,15 +37,15 @@ fn handle_input(input: &str, path: &str) {
     }
 }
 
-fn executable_exists(path: &str, command: &str) -> String {
+fn executable_exists(path: &str, command: &str) {
     let directories = path.split(':');
 
     for directory in directories {
         let full_path = format!("{}/{}", directory, command);
         if std::fs::metadata(&full_path).is_ok() {
-            return full_path;
+            println!("{} is {}", command, full_path);
         }
     }
 
-    format!("{}: command not found", command)
+    println!("{}: command not found", command)
 }
