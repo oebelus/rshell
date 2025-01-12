@@ -19,6 +19,10 @@ fn main() {
             }
         }
 
+        else if trimmed.starts_with("echo") {
+            println!("{}", trimmed[5..].trim());
+        }
+
         else {
             println!("{}: command not found", input.trim());  
         }  
