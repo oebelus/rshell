@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::{env, process::exit};
+use std::{env, process::{exit, Command}};
 
 fn main() {
 
@@ -37,6 +37,9 @@ fn handle_input(input: &str, path: &str) {
             }
         }
         "exit 0" => exit(0),
+        input if is_executable(path, input.split_whitespace()[0]) => {
+            
+        }
         _ => println!("{}: command not found", input.trim())
     }
 }
@@ -53,4 +56,20 @@ fn executable_exists(path: &str, command: &str) {
     }
 
     println!("{}: not found", command)
+}
+
+fn is_executable(path: &str, command: &str) -> bool {
+    let directories = path.split(':');
+
+    for directory in directories {
+        let full_path = format!("{}/{}", directory, command);
+        if std::fs::metadata(&full_path).is_ok() {
+            match Command::new(full_path).output() {
+                Ok(_) => true,
+                Err(_) => false
+            };
+        }
+    }
+
+    return false;
 }
