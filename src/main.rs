@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn handle_input(input: &str, path: &str) {
-    let builtins= ["exit", "echo", "type"];
+    let builtins= ["exit", "echo", "type", "pwd"];
     let splited = input.split_whitespace().collect::<Vec<&str>>();
 
     match input.trim() {
