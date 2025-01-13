@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::{env::{self, current_dir}, fs, process::{exit, Command}};
+use std::{env::{self, current_dir, set_current_dir}, fs, process::{exit, Command}};
 
 fn main() {
     let path = match env::var("PATH") {
@@ -21,11 +21,17 @@ fn main() {
 }
 
 fn handle_input(input: &str, path: &str) {
-    let builtins= ["exit", "echo", "type", "pwd"];
+    let builtins= ["exit", "echo", "type", "pwd", "cd"];
     let splited = input.split_whitespace().collect::<Vec<&str>>();
 
     match input.trim() {
         "pwd" => println!("{}", current_dir().unwrap().to_str().unwrap()),
+        input if input.starts_with("cd") => {
+            match set_current_dir(splited[1]) {
+                Ok(_) => (),
+                Err(_) => println!("cd: {}: No such file or directory", splited[1])
+            }
+        },
         input if input.starts_with("echo") => println!("{}", input[5..].trim()),
         input if input.starts_with("type") => {
             let command = input[5..].trim();
