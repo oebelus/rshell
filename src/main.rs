@@ -1,9 +1,8 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::{env, process::{exit, Command}};
+use std::{env, fs, process::{exit, Command}};
 
 fn main() {
-
     let path = match env::var("PATH") {
         Ok(p) => p,
         Err(_) => String::new(),
@@ -23,6 +22,7 @@ fn main() {
 
 fn handle_input(input: &str, path: &str) {
     let builtins= ["exit", "echo", "type"];
+    let splited = input.split_whitespace().collect::<Vec<&str>>();
 
     match input.trim() {
         input if input.starts_with("echo") => println!("{}", input[5..].trim()),
@@ -37,10 +37,17 @@ fn handle_input(input: &str, path: &str) {
             }
         }
         "exit 0" => exit(0),
-        input if is_executable(path, input.split_whitespace()[0]) => {
-            
+        _ => {
+            match is_executable(path, splited[0]) {
+                Ok(_) => {
+                    Command::new(splited[0])
+                        .args(&splited[1..])
+                        .status()
+                        .expect("Failed to execute process");
+                }
+                Err(_) => eprintln!("{}: command not found", splited[0]),
+            }
         }
-        _ => println!("{}: command not found", input.trim())
     }
 }
 
@@ -58,18 +65,17 @@ fn executable_exists(path: &str, command: &str) {
     println!("{}: not found", command)
 }
 
-fn is_executable(path: &str, command: &str) -> bool {
+fn is_executable(path: &str, command: &str) ->Result<String, bool> {
     let directories = path.split(':');
 
     for directory in directories {
         let full_path = format!("{}/{}", directory, command);
-        if std::fs::metadata(&full_path).is_ok() {
-            match Command::new(full_path).output() {
-                Ok(_) => true,
-                Err(_) => false
-            };
+        
+        if fs::metadata(&full_path).is_ok() {
+            if Command::new(&full_path).output().is_ok() {
+                return Ok(full_path)
+            }
         }
     }
-
-    return false;
+    Err(false)
 }
