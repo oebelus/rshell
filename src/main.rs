@@ -2,6 +2,19 @@
 use std::io::{self, Write};
 use std::{env::{self, current_dir, set_current_dir}, fs, process::{exit, Command}};
 
+struct Instruction {
+    command: String,
+    arguments: Vec<String>
+}
+
+enum Builtins {
+    Exit,
+    Echo,
+    Type,
+    Pwd,
+    Ls
+}
+
 fn main() {
     let path = match env::var("PATH") {
         Ok(p) => p,
