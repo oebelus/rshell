@@ -21,6 +21,11 @@ fn main() {
         Err(_) => String::new(),
     };
 
+    let home = match env::var("HOME") {
+        Ok(p) => p,
+        Err(_) => String::new(),
+    };
+
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
@@ -29,17 +34,23 @@ fn main() {
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
 
-        handle_input(&input, &path);
+        handle_input(&input, &path, &home);
     }
 }
 
-fn handle_input(input: &str, path: &str) {
+fn handle_input(input: &str, path: &str, home: &str) {
     let builtins= ["exit", "echo", "type", "pwd", "cd"];
     let splited = input.split_whitespace().collect::<Vec<&str>>();
 
     match input.trim() {
         "pwd" => println!("{}", current_dir().unwrap().to_str().unwrap()),
         input if input.starts_with("cd") => {
+            if splited[1] == "~" {
+                match set_current_dir(home) {
+                    Ok(_) => (),
+                    Err(_) => println!("cd: {}: No such file or directory", splited[1])
+                }
+            }
             match set_current_dir(splited[1]) {
                 Ok(_) => (),
                 Err(_) => println!("cd: {}: No such file or directory", splited[1])
