@@ -45,11 +45,12 @@ fn handle_input(input: &str, path: &str, home: &str) {
     match input.trim() {
         "pwd" => println!("{}", current_dir().unwrap().to_str().unwrap()),
         input if input.starts_with("cd") => {
-            if splited[1] == "~" {
+            if splited[1].trim() == "~" {
                 match set_current_dir(home) {
                     Ok(_) => (),
                     Err(_) => println!("cd: {}: No such file or directory", splited[1])
                 }
+                return;
             }
             match set_current_dir(splited[1]) {
                 Ok(_) => (),
