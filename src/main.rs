@@ -1,28 +1,15 @@
 #[allow(unused_imports)]
 
 mod shell;
+mod file;
+mod instruction;
 
 use std::io::{self, Write};
-use std::{env::{current_dir, set_current_dir}, fs, process::{exit, Command}};
+use std::{env::{current_dir, set_current_dir}, process::{exit, Command}};
+use file::{executable_exists, is_executable, read_file};
+
+use instruction::Instruction;
 use shell::Shell;
-
-struct Instruction {
-    command: String,
-    arguments: Vec<String>
-}
-
-impl Instruction {
-    fn new(input: &str) -> Instruction {
-        let mut vector = input.split_whitespace();
-        let command = vector.next().unwrap().to_string();
-        let arguments = vector;
-
-        Instruction {
-            command,
-            arguments: arguments.map(str::to_string).collect()
-        }
-    }
-}
 
 fn main() {
     let shell = Shell::new();
@@ -75,7 +62,12 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
             else { 
                 executable_exists(&path, command);
             }
-        }
+        },
+        "cat" => {
+            for i in &instruction.arguments {
+                read_file(&i);
+            }
+        },
         "exit" => {
             let argument = instruction.arguments.join("");
             match argument.as_str() {
@@ -95,33 +87,4 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
             }
         }
     }
-}
-
-fn executable_exists(path: &str, command: &str) {
-    let directories = path.split(':');
-
-    for directory in directories {
-        let full_path = format!("{}/{}", directory, command);
-        if std::fs::metadata(&full_path).is_ok() {
-            println!("{} is {}", command, full_path);
-            return;
-        }
-    }
-
-    println!("{}: not found", command)
-}
-
-fn is_executable(path: &str, command: &str) ->Result<String, bool> {
-    let directories = path.split(':');
-
-    for directory in directories {
-        let full_path = format!("{}/{}", directory, command);
-        
-        if fs::metadata(&full_path).is_ok() {
-            if Command::new(&full_path).output().is_ok() {
-                return Ok(full_path)
-            }
-        }
-    }
-    Err(false)
 }
