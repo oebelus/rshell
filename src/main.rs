@@ -1,30 +1,31 @@
 #[allow(unused_imports)]
+
+mod shell;
+
 use std::io::{self, Write};
-use std::{env::{self, current_dir, set_current_dir}, fs, process::{exit, Command}};
+use std::{env::{current_dir, set_current_dir}, fs, process::{exit, Command}};
+use shell::Shell;
 
 struct Instruction {
     command: String,
     arguments: Vec<String>
 }
 
-enum Builtins {
-    Exit,
-    Echo,
-    Type,
-    Pwd,
-    Ls
+impl Instruction {
+    fn new(input: &str) -> Instruction {
+        let mut vector = input.split_whitespace();
+        let command = vector.next().unwrap().to_string();
+        let arguments = vector;
+
+        Instruction {
+            command,
+            arguments: arguments.map(str::to_string).collect()
+        }
+    }
 }
 
 fn main() {
-    let path = match env::var("PATH") {
-        Ok(p) => p,
-        Err(_) => String::new(),
-    };
-
-    let home = match env::var("HOME") {
-        Ok(p) => p,
-        Err(_) => String::new(),
-    };
+    let shell = Shell::new();
 
     loop {
         print!("$ ");
@@ -34,50 +35,63 @@ fn main() {
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
 
-        handle_input(&input, &path, &home);
+        let instruction = Instruction::new(input.trim());
+
+        handle_input(&instruction, &shell);
     }
 }
 
-fn handle_input(input: &str, path: &str, home: &str) {
-    let builtins= ["exit", "echo", "type", "pwd", "cd"];
-    let splited = input.split_whitespace().collect::<Vec<&str>>();
+fn handle_input(instruction: &Instruction, shell: &Shell) {
+    let home = &shell.environment["home"];
+    let path = &shell.environment["path"];
 
-    match input.trim() {
+    let command = instruction.command.as_str();
+
+    match command {
         "pwd" => println!("{}", current_dir().unwrap().to_str().unwrap()),
-        input if input.starts_with("cd") => {
-            if splited[1].trim() == "~" {
-                match set_current_dir(home) {
-                    Ok(_) => (),
-                    Err(_) => println!("cd: {}: No such file or directory", splited[1])
-                }
-                return;
-            }
-            match set_current_dir(splited[1]) {
-                Ok(_) => (),
-                Err(_) => println!("cd: {}: No such file or directory", splited[1])
+        "cd" => {
+            let directory = &instruction.arguments[0];
+
+            match directory.as_str() {
+                "~" => 
+                    match set_current_dir(home) {
+                        Ok(_) => (),
+                        Err(_) => println!("Error navigating to home"),
+                    },
+                _ => 
+                    match set_current_dir(directory) {
+                        Ok(_) => (),
+                        Err(_) => println!("cd: {}: No such file or directory", directory)
+                    },
             }
         },
-        input if input.starts_with("echo") => println!("{}", input[5..].trim()),
-        input if input.starts_with("type") => {
-            let command = input[5..].trim();
-            if builtins.contains(&command) {
+        "echo" => println!("{}", instruction.arguments.join("").trim()),
+        "type" => {
+            let command = &instruction.arguments.join("");
+            if shell.builtins.contains(&command.as_str()) {
                 println!("{} is a shell builtin", command);
                 return
             }
             else { 
-                executable_exists(path, command);
+                executable_exists(&path, command);
             }
         }
-        "exit 0" => exit(0),
+        "exit" => {
+            let argument = instruction.arguments.join("");
+            match argument.as_str() {
+                "0" => exit(0),
+                _ => println!("exit: command not found")
+            }
+        }
         _ => {
-            match is_executable(path, splited[0]) {
+            match is_executable(&path, command) {
                 Ok(_) => {
-                    Command::new(splited[0])
-                        .args(&splited[1..])
+                    Command::new(command)
+                        .args(&instruction.arguments)
                         .status()
                         .expect("Failed to execute process");
                 }
-                Err(_) => eprintln!("{}: command not found", splited[0]),
+                Err(_) => eprintln!("{}: command not found", command),
             }
         }
     }
