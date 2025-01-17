@@ -23,7 +23,7 @@ impl Shell {
 
         Shell {
             environment,
-            builtins: vec!["exit", "echo", "type", "pwd", "cd", "cat"],
+            builtins: vec!["exit", "echo", "type", "pwd", "cd"],
         }
     }
 }

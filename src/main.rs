@@ -52,7 +52,7 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
                     },
             }
         },
-        "echo" => println!("{}", instruction.arguments.join("").trim()),
+        "echo" => println!("{}", instruction.arguments.join(" ").trim()),
         "type" => {
             let command = &instruction.arguments.join("");
             if shell.builtins.contains(&command.as_str()) {
@@ -64,9 +64,12 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
             }
         },
         "cat" => {
-            for i in &instruction.arguments {
-                read_file(&i);
-            }
+            let mut cat: Vec<String> = vec![];
+
+            let _ = instruction.arguments.iter().map(|x| cat.push(read_file(x)));
+
+            print!("{}", cat.join(""));
+
         },
         "exit" => {
             let argument = instruction.arguments.join("");
