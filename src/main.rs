@@ -66,10 +66,11 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
         "cat" => {
             let mut cat: Vec<String> = vec![];
 
-            let _ = instruction.arguments.iter().map(|x| cat.push(read_file(x)));
+            for i in &instruction.arguments {
+                cat.push(read_file(&i));
+            }
 
             print!("{}", cat.join(""));
-
         },
         "exit" => {
             let argument = instruction.arguments.join("");
