@@ -1,4 +1,4 @@
-R-SHELL
+# R-SHELL
 
 This is a REPL POSIX compliant shell in Rust that's capable of interpreting shell commands, running external programs and some builtin commands.
 
@@ -12,3 +12,4 @@ Currently, this Shell supports:
    - Single quotes;
    - Double quotes;
    - Backslash outside quotes;
+   - Backslash within single quotes;
