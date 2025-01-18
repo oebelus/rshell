@@ -44,6 +44,14 @@ fn parse_command(input: &str) -> Vec<String> {
                         buffer.clear();
                     }
                 }
+                '"' => {
+                    i += 1;
+                    while input.chars().nth(i) != Some('"') && i < length {
+                        buffer.push(input.chars().nth(i).unwrap());
+                        i += 1;
+                    }
+                    
+                }
                 _ => {
                     buffer.push(x);
                 }
