@@ -11,7 +11,7 @@ impl Instruction {
 
         Instruction {
             command,
-            arguments: arguments
+            arguments
         }
     }
 }
@@ -51,6 +51,12 @@ fn parse_command(input: &str) -> Vec<String> {
                         i += 1;
                     }
                     
+                }
+                '\\' => {
+                    if i < length - 1 {
+                        buffer.push(input.chars().nth(i + 1).unwrap());
+                    }
+                    i += 1;
                 }
                 _ => {
                     buffer.push(x);

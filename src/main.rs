@@ -32,7 +32,7 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
     let home = &shell.environment["home"];
     let path = &shell.environment["path"];
 
-    let command = instruction.command.as_str();
+    let command = instruction.command.trim();
 
     match command {
         "pwd" => println!("{}", current_dir().unwrap().to_str().unwrap()),
