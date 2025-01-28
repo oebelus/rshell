@@ -13,3 +13,5 @@ Currently, this Shell supports:
    - Double quotes;
    - Backslash outside quotes;
    - Backslash within single quotes;
+   - Backslash within double quotes;
+   - Executing a quoted executable.
