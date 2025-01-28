@@ -4,6 +4,7 @@ mod shell;
 mod file;
 mod instruction;
 
+use std::fs;
 use std::io::{self, Write};
 use std::{env::{current_dir, set_current_dir}, process::{exit, Command}};
 use file::{executable_exists, is_executable, read_file};
@@ -64,13 +65,17 @@ fn handle_input(instruction: &Instruction, shell: &Shell) {
             }
         },
         "cat" => {
-            let mut cat: Vec<String> = vec![];
-
+            let mut vec = vec![];
+            
             for i in &instruction.arguments {
-                cat.push(read_file(&i));
+                match fs::read_to_string(i) {
+                    Ok(content) => vec.push(content),
+                    Err(_) => println!("Error reading file {}", i),
+                };
             }
 
-            print!("{}", cat.join(""));
+            print!("{}", vec.join(""));
+            io::stdout().flush().unwrap();
         },
         "exit" => {
             let argument = instruction.arguments.join("");

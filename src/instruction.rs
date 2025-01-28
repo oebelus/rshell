@@ -45,10 +45,18 @@ fn parse_command(input: &str) -> Vec<String> {
                     }
                 }
                 '"' => {
+                    let escape = ['\\', '$', '"', '\n'];
+
                     i += 1;
                     while input.chars().nth(i) != Some('"') && i < length {
-                        buffer.push(input.chars().nth(i).unwrap());
-                        i += 1;
+                        if input.chars().nth(i) == Some('\\') && i + 1 < length && escape.contains(&input.chars().nth(i+1).unwrap()) {
+                            i += 1;
+                            buffer.push(input.chars().nth(i).expect("Not Found"));
+                            i += 1;
+                        } else {
+                            buffer.push(input.chars().nth(i).expect("Not Found"));
+                            i += 1;
+                        }
                     }
                     
                 }
