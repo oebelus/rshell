@@ -1,17 +1,16 @@
 use std::{fs, process::Command};
 
-pub fn executable_exists(path: &str, command: &str) {
+pub fn executable_exists(path: &str, command: &str) -> String {
     let directories = path.split(':');
 
     for directory in directories {
         let full_path = format!("{}/{}", directory, command);
         if std::fs::metadata(&full_path).is_ok() {
-            println!("{} is {}", command, full_path);
-            return;
+            return String::from(format!("{} is {}", command, full_path));
         }
     }
 
-    println!("{}: not found", command)
+    String::from(format!("{}: not found", command))
 }
 
 pub fn is_executable(path: &str, command: &str) -> Result<String, bool> {
@@ -27,8 +26,4 @@ pub fn is_executable(path: &str, command: &str) -> Result<String, bool> {
         }
     }
     Err(false)
-}
-
-pub fn read_file(path: &str) -> String {
-    fs::read_to_string(path).expect("Couldn't read file")
 }

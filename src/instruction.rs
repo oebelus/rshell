@@ -1,19 +1,26 @@
 pub struct Instruction {
     pub command: String,
-    pub arguments: Vec<String>
+    pub arguments: Vec<String>,
+    pub redirection: bool
 }
 
 impl Instruction {
     pub fn new(input: &str) -> Instruction {
         let vector = parse_command(input);
         let command = vector.get(0).unwrap().to_string();
-        let arguments = vector[1..].iter().filter(|s| !s.trim().is_empty()).cloned().collect();
+        let arguments: Vec<String> = vector[1..].iter().filter(|s| !s.trim().is_empty()).cloned().collect();
 
         Instruction {
             command,
-            arguments
+            arguments: arguments.clone(),
+            redirection: has_redirection(&arguments)
         }
     }
+}
+
+fn has_redirection(arguments: &Vec<String>) -> bool {
+    let redirections = [String::from(">"), String::from("1>")];
+    arguments.iter().find(|x| redirections.contains(x)).is_some() 
 }
 
 fn parse_command(input: &str) -> Vec<String> {
