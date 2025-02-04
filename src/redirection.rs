@@ -33,6 +33,7 @@ pub fn find_redirection(arguments: Vec<String>) -> Result<(Vec<String>, Redirect
             redirection.r_type = match args[index].as_str() {
                 ">" => RedirType::Stdout,
                 "1>" => RedirType::Stdout,
+                "2>" => RedirType::Stderr,
                 _ => RedirType::None,
             };
 

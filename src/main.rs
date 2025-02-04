@@ -1,16 +1,18 @@
-#[allow(unused_imports)]
-
 mod shell;
-mod file;
+mod shfile;
 mod instruction;
 mod redirection;
+mod sherror;
 
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
 use std::{env::{current_dir, set_current_dir}, process::{exit, Command}};
 use anyhow::Error;
-use file::{executable_exists, is_executable};
+use shfile::{executable_exists, is_executable};
+use std::path::PathBuf;
+use sherror::ShellError;
+use sherror::get_error_message;
 
 use instruction::Instruction;
 use redirection::{find_redirection, Redirection};
@@ -43,75 +45,101 @@ fn execute_cmd(instruction: &Instruction, shell: &Shell) {
                 arguments = x;
                 let redirection = y;
 
-                let output = handle_input(command, arguments.clone(), shell);
-
-                match redirect_output(redirection, &output) {
-                    Ok(_) => return,
-                    Err(_) => (),
+                match handle_input(command, arguments.clone(), shell) {
+                    Ok(output) => {
+                        match redirect_output(redirection, &output) {
+                            Ok(_) => return,
+                            Err(_) => (),
+                        }
+                    },
+                    Err(err) => {
+                        match redirect_output(redirection, get_error_message(&err).unwrap()) {
+                            Ok(_) => return,
+                            Err(_) => (),
+                        }
+                    },
                 }
             },
             Err(_) => println!("Redirection in wrong format."),
         }
     } else {
-        let output = handle_input(command, arguments.clone(), shell);
-
-        if output.is_empty() {
-            print!("");
-        } else {
-            println!("{}", output.trim());
+        match handle_input(command, arguments.clone(), shell) {
+            Ok(output) => {
+                if output.is_empty() {
+                    print!("");
+                } else {
+                    println!("{}", output.trim());
+                }
+            },
+            Err(_) => (),
         }
     }
 }
 
-fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> String {
+fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<String, ShellError> {
     let home = &shell.environment["home"];
     let path = &shell.environment["path"];
 
     match command {
-        "pwd" => current_dir().unwrap().to_str().unwrap().to_string(),
+        "pwd" => current_dir()
+            .map_err(ShellError::from)
+            .and_then(|path| {
+                path.to_str()
+                    .ok_or_else(|| ShellError::ExecutionError("Invalid path encoding".to_string()))
+                    .map(|s| s.to_string())
+        }),
+
         "cd" => {
             let directory = &arguments[0];
 
-            match directory.as_str() {
-                "~" => 
-                    match set_current_dir(home) {
-                        Ok(_) => String::from(""),
-                        Err(_) => String::from("Error navigating to home"),
-                    },
-                _ => 
-                    match set_current_dir(directory) {
-                        Ok(_) => String::from(""),
-                        Err(_) => String::from(format!("cd: {}: No such file or directory", directory))
-                    },
+            if directory.is_empty() {
+                return Err(ShellError::InvalidArgument("No directory specified".to_string()));
             }
+
+            let path = match directory.as_str() {
+                "~" => PathBuf::from(home),
+                dir => PathBuf::from(dir)
+            };
+
+            set_current_dir(path)
+                .map_err(|_| ShellError::FileNotFound(format!("cd: {}: No such file or directory", directory)))
+                .map(|_| String::new())
+            
         },
-        "echo" => String::from(format!("{}", &arguments.join(" ").trim())),
+
+        "echo" => Ok(arguments.join(" ").trim().to_string()),
+
         "type" => {
             let command = &&arguments.join("");
             if shell.builtins.contains(&command.as_str()) {
-                String::from(format!("{} is a shell builtin", command))
+                Ok(String::from(format!("{} is a shell builtin", command)))
             }
             else { 
-                executable_exists(&path, command)
+                match executable_exists(&path, command) {
+                    Ok(x) => Ok(x),
+                    Err(x) => Err(x)
+                }
             }
         },
+
         "cat" => {
             let mut vec = vec![];
             
             for i in &arguments {
                 match fs::read_to_string(i) {
-                    Ok(content) => vec.push(content),
-                    Err(_) => println!("cat: {}: No such file or directory", i),
+                    Ok(content) => Ok(vec.push(content)),
+                    Err(_) => Err(ShellError::FileNotFound(format!("cat: {}: No such file or directory", i))),
                 };
             }
 
-            String::from(format!("{}", vec.join("")))
+            Ok(String::from(format!("{}", vec.join(""))))
         },
+
         "exit" => {
             let argument = &arguments.join("");
             match argument.as_str() {
                 "0" => exit(0),
-                _ => String::from(format!("exit: command not found"))
+                _ => Err(ShellError::InvalidArgument(String::from(format!("exit: command not found"))))
             }
         }
         _ => {
@@ -123,12 +151,12 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> String 
                         .expect("Failed to execute process");
 
                     if output.status.success() {
-                        String::from_utf8(output.stdout).expect("Command executed successfully")
+                        Ok(String::from_utf8(output.stdout).expect("Command executed successfully"))
                     } else {
-                        String::from_utf8(output.stderr).expect("Command failed")
+                        Err(ShellError::ExecutionError(String::from_utf8(output.stderr).expect("Command failed")))
                     }
                 }
-                Err(_) => String::from(format!("{}: command not found", command)),
+                Err(_) => Err(ShellError::FileNotFound(String::from(format!("{}: command not found", command)))),
             }
         }
     }
