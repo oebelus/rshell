@@ -1,5 +1,4 @@
-use std::fmt;
-
+#[allow(dead_code)]
 pub enum ShellError {
     IoError(std::io::Error),
     FileNotFound(String),

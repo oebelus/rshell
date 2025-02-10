@@ -15,3 +15,6 @@ Currently, this Shell supports:
    - Backslash within single quotes;
    - Backslash within double quotes;
    - Executing a quoted executable.
+- Redirection:
+   - Redirect stdout;
+   - Rdirect stderr;

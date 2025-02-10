@@ -8,14 +8,14 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
 use std::{env::{current_dir, set_current_dir}, process::{exit, Command}};
-use anyhow::Error;
 use shfile::{executable_exists, is_executable};
 use std::path::PathBuf;
 use sherror::ShellError;
 use sherror::get_error_message;
+use instruction::Output;
 
 use instruction::Instruction;
-use redirection::{find_redirection, Redirection};
+use redirection::{find_redirection, RedirType, Redirection};
 use shell::Shell;
 
 fn main() {
@@ -45,38 +45,28 @@ fn execute_cmd(instruction: &Instruction, shell: &Shell) {
                 arguments = x;
                 let redirection = y;
 
-                match handle_input(command, arguments.clone(), shell) {
-                    Ok(output) => {
-                        match redirect_output(redirection, &output) {
-                            Ok(_) => return,
-                            Err(_) => (),
-                        }
-                    },
-                    Err(err) => {
-                        match redirect_output(redirection, get_error_message(&err).unwrap()) {
-                            Ok(_) => return,
-                            Err(_) => (),
-                        }
-                    },
-                }
+                let output = handle_input(command, arguments.clone(), shell)
+                .map_err(|err| get_error_message(&err).unwrap().to_string());
+
+                redirect_output(redirection.clone(), output).unwrap();
             },
             Err(_) => println!("Redirection in wrong format."),
         }
     } else {
         match handle_input(command, arguments.clone(), shell) {
             Ok(output) => {
-                if output.is_empty() {
+                if output.to_string().is_empty() {
                     print!("");
                 } else {
-                    println!("{}", output.trim());
+                    println!("{}", output.to_string().trim());
                 }
             },
-            Err(_) => (),
+            Err(err) => println!("{}", get_error_message(&err).unwrap()),
         }
     }
 }
 
-fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<String, ShellError> {
+fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<Output, ShellError> {
     let home = &shell.environment["home"];
     let path = &shell.environment["path"];
 
@@ -86,7 +76,7 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
             .and_then(|path| {
                 path.to_str()
                     .ok_or_else(|| ShellError::ExecutionError("Invalid path encoding".to_string()))
-                    .map(|s| s.to_string())
+                    .map(|s| Output::String(s.to_string()))
         }),
 
         "cd" => {
@@ -103,36 +93,39 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
 
             set_current_dir(path)
                 .map_err(|_| ShellError::FileNotFound(format!("cd: {}: No such file or directory", directory)))
-                .map(|_| String::new())
+                .map(|_| Output::String(String::new()))
             
         },
 
-        "echo" => Ok(arguments.join(" ").trim().to_string()),
+        "echo" => Ok(Output::String(arguments.join(" ").trim().to_string())),
 
         "type" => {
             let command = &&arguments.join("");
             if shell.builtins.contains(&command.as_str()) {
-                Ok(String::from(format!("{} is a shell builtin", command)))
+                Ok(Output::String(String::from(format!("{} is a shell builtin", command))))
             }
             else { 
                 match executable_exists(&path, command) {
-                    Ok(x) => Ok(x),
+                    Ok(x) => Ok(Output::String(x)),
                     Err(x) => Err(x)
                 }
             }
         },
 
         "cat" => {
-            let mut vec = vec![];
+            let mut vec_stdout: Vec<String> = vec![];
+            let mut vec_stderr: Vec<String> = vec![];
             
             for i in &arguments {
-                match fs::read_to_string(i) {
-                    Ok(content) => Ok(vec.push(content)),
-                    Err(_) => Err(ShellError::FileNotFound(format!("cat: {}: No such file or directory", i))),
-                };
+                let c = fs::read_to_string(i).map_err(|_| ShellError::FileNotFound(format!("cat: {}: No such file or directory", i)));
+                
+                match c {
+                    Ok(x) => vec_stdout.push(x),
+                    Err(e) => vec_stderr.push(get_error_message(&e).unwrap().to_string()),
+                }
             }
 
-            Ok(String::from(format!("{}", vec.join(""))))
+            Ok(Output::StdOutErr(vec_stdout.join(""), vec_stderr.join("\n")))
         },
 
         "exit" => {
@@ -151,7 +144,7 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
                         .expect("Failed to execute process");
 
                     if output.status.success() {
-                        Ok(String::from_utf8(output.stdout).expect("Command executed successfully"))
+                        Ok(Output::String(String::from_utf8(output.stdout).expect("Command executed successfully")))
                     } else {
                         Err(ShellError::ExecutionError(String::from_utf8(output.stderr).expect("Command failed")))
                     }
@@ -162,10 +155,61 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
     }
 }
 
-fn redirect_output(redirection: Redirection, content: &str) -> Result<(), Error> {
+fn redirect_output(redirection: Redirection, content: Result<Output, String>) -> Result<(), String> {
     let path = Path::new(&redirection.path);
 
-    let mut file = File::create(path)?;
-    file.write_all(content.as_bytes())?;
+    let mut file = File::create(path).unwrap();
+
+    match content {
+        Ok(Output::String(x)) => {
+            if redirection.r_type == RedirType::Stdout {
+                file.write_all(x.as_bytes()).map_err(|e| e.to_string())?;
+            } else {
+                if x.is_empty() {
+                    print!("");
+                } else {
+                    println!("{}", x.to_string().trim());
+                }
+            }
+        },
+        Ok(Output::StdOutErr(stdout, stderr)) => {
+            match redirection.r_type {
+                RedirType::Stdout => {
+                    if !stderr.is_empty() {
+                        println!("{}", stderr.trim());
+                    }
+
+                    file.write_all(stdout.as_bytes()).map_err(|e| e.to_string())?;
+                },
+                RedirType::Stderr => {
+                    file.write_all(stderr.as_bytes()).map_err(|e| e.to_string())?;
+
+                    if !stdout.is_empty() {
+                        println!("{}", stdout.trim());
+                    }
+                },
+                RedirType::None => {
+                    if !stdout.is_empty() {
+                        println!("{}", stdout.trim());
+                    }
+                    if !stderr.is_empty() {
+                        eprintln!("{}", stderr.trim());
+                    }
+                },
+            }
+        }
+        Err(e) => {
+            if redirection.r_type == RedirType::Stderr {
+                file.write_all(e.as_bytes()).map_err(|e| e.to_string())?;
+            } else {
+                if e.is_empty() {
+                    print!("");
+                } else {
+                    println!("{}",e.trim());
+                }
+            }
+        },
+    }
+
     Ok(())
 }

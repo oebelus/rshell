@@ -1,7 +1,16 @@
+use std::fmt::Display;
+
+use crate::redirection;
+
 pub struct Instruction {
     pub command: String,
     pub arguments: Vec<String>,
     pub redirection: bool
+}
+
+pub enum Output {
+    String(String),
+    StdOutErr(String, String)
 }
 
 impl Instruction {
@@ -13,14 +22,26 @@ impl Instruction {
         Instruction {
             command,
             arguments: arguments.clone(),
-            redirection: has_redirection(&arguments)
+            redirection: redirection::has_redirection(&arguments)
         }
     }
 }
 
-fn has_redirection(arguments: &Vec<String>) -> bool {
-    let redirections = [String::from(">"), String::from("1>")];
-    arguments.iter().find(|x| redirections.contains(x)).is_some() 
+impl Display for Output {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Output::String(output) => write!(f, "{}", output),
+            Output::StdOutErr(stdout, stderr) => {
+                if stdout.is_empty() {
+                    write!(f, "{}", stderr)
+                } else if stderr.is_empty() {
+                    write!(f, "{}", stdout)
+                } else {
+                    write!(f, "{}\n{}", stdout, stderr)
+                }
+            },
+        }
+    }
 }
 
 fn parse_command(input: &str) -> Vec<String> {
