@@ -121,7 +121,7 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
                 
                 match c {
                     Ok(x) => vec_stdout.push(x),
-                    Err(e) => vec_stderr.push(get_error_message(&e).unwrap().to_string()),
+                    Err(e) => vec_stderr.push(format!("{}\n", get_error_message(&e).unwrap().to_string())),
                 }
             }
 

@@ -19,3 +19,4 @@ Currently, this Shell supports:
    - Redirect stdout;
    - Redirect stderr;
    - Append stdout;
+   - Append stderr;
