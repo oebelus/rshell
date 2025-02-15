@@ -17,4 +17,5 @@ Currently, this Shell supports:
    - Executing a quoted executable.
 - Redirection:
    - Redirect stdout;
-   - Rdirect stderr;
+   - Redirect stderr;
+   - Append stdout;

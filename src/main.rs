@@ -4,7 +4,7 @@ mod instruction;
 mod redirection;
 mod sherror;
 
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::Path;
 use std::{env::{current_dir, set_current_dir}, process::{exit, Command}};
@@ -15,7 +15,7 @@ use sherror::get_error_message;
 use instruction::Output;
 
 use instruction::Instruction;
-use redirection::{find_redirection, RedirType, Redirection};
+use redirection::{find_redirection, RedirOp, RedirType, Redirection};
 use shell::Shell;
 
 fn main() {
@@ -48,7 +48,7 @@ fn execute_cmd(instruction: &Instruction, shell: &Shell) {
                 let output = handle_input(command, arguments.clone(), shell)
                 .map_err(|err| get_error_message(&err).unwrap().to_string());
 
-                redirect_output(redirection.clone(), output).unwrap();
+                redirect_output(redirection.clone(), output, command.to_string().clone()).unwrap();
             },
             Err(_) => println!("Redirection in wrong format."),
         }
@@ -97,7 +97,7 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
             
         },
 
-        "echo" => Ok(Output::String(arguments.join(" ").trim().to_string())),
+        "echo" => Ok(Output::String(format!("{}\n", arguments.join(" ").trim()).to_string())),
 
         "type" => {
             let command = &&arguments.join("");
@@ -155,34 +155,80 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
     }
 }
 
-fn redirect_output(redirection: Redirection, content: Result<Output, String>) -> Result<(), String> {
+fn redirect_output(redirection: Redirection, content: Result<Output, String>, command: String) -> Result<(), String> {
     let path = Path::new(&redirection.path);
 
-    let mut file = File::create(path).unwrap();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| e.to_string())?;
+    }
+
+    let operation = RedirType::get_redir_op(redirection.r_type.clone());
+
+    let file = match redirection.r_type {
+        RedirType::None => None,
+        _ => {
+            let file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .append(operation == Some(RedirOp::Append))
+                .truncate(operation == Some(RedirOp::Write))
+                .open(path)
+                .map_err(|e| e.to_string())?;
+            Some(file)
+        }
+    };
 
     match content {
         Ok(Output::String(x)) => {
-            if redirection.r_type == RedirType::Stdout {
-                file.write_all(x.as_bytes()).map_err(|e| e.to_string())?;
-            } else {
-                if x.is_empty() {
-                    print!("");
-                } else {
-                    println!("{}", x.to_string().trim());
+            match redirection.r_type {
+                RedirType::Stderr(_) => {
+                    if command != "echo" {
+                        if let Some(mut f) = file {
+                            f.write_all(x.as_bytes())
+                                .map_err(|e| e.to_string())?;
+                        }
+                    } else {
+                        println!("{}", x.trim());
+                    }
+                },
+                RedirType::Stdout(_) => {
+                    if !x.starts_with("err") {
+                        if let Some(mut f) = file {
+                            f.write_all(x.as_bytes())
+                                .map_err(|e| e.to_string())?;
+                        }
+                    } else {
+                        println!("{}", x.trim());
+                    }
+                    
+                },
+                RedirType::None => {
+                    if x.is_empty() {
+                        print!("");
+                    } else {
+                        println!("{}", x.trim());
+                    }
                 }
             }
         },
         Ok(Output::StdOutErr(stdout, stderr)) => {
             match redirection.r_type {
-                RedirType::Stdout => {
+                RedirType::Stdout(_) => {
                     if !stderr.is_empty() {
                         println!("{}", stderr.trim());
                     }
-
-                    file.write_all(stdout.as_bytes()).map_err(|e| e.to_string())?;
+                    
+                    if let Some(mut f) = file {
+                        f.write_all(stdout.as_bytes())
+                            .map_err(|e| e.to_string())?;
+                    }
                 },
-                RedirType::Stderr => {
-                    file.write_all(stderr.as_bytes()).map_err(|e| e.to_string())?;
+                RedirType::Stderr(_) => {
+                    if let Some(mut f) = file {
+                        f.write_all(stderr.as_bytes())
+                            .map_err(|e| e.to_string())?;
+                    }
 
                     if !stdout.is_empty() {
                         println!("{}", stdout.trim());
@@ -199,13 +245,17 @@ fn redirect_output(redirection: Redirection, content: Result<Output, String>) ->
             }
         }
         Err(e) => {
-            if redirection.r_type == RedirType::Stderr {
-                file.write_all(e.as_bytes()).map_err(|e| e.to_string())?;
-            } else {
-                if e.is_empty() {
-                    print!("");
-                } else {
-                    println!("{}",e.trim());
+            match redirection.r_type {
+                RedirType::Stderr(_) => {
+                    if let Some(mut f) = file {
+                        f.write_all(e.as_bytes())
+                            .map_err(|e| e.to_string())?;
+                    }
+                },
+                _ => {
+                    if !e.is_empty() {
+                        println!("{}", e.trim());
+                    }
                 }
             }
         },
