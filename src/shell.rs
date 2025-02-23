@@ -1,8 +1,9 @@
 use std::{collections::HashMap, env};
 
+#[derive(Clone)]
 pub struct Shell {
     pub environment: HashMap<String, String>,
-    pub builtins: Vec<&'static str>
+    pub builtins: Vec<String>
 }
 
 impl Shell {
@@ -23,7 +24,7 @@ impl Shell {
 
         Shell {
             environment,
-            builtins: vec!["exit", "echo", "type", "pwd", "cd"],
+            builtins: vec!["exit", "echo", "type", "pwd", "cd"].iter().map(|x| x.to_string()).collect(),
         }
     }
 }

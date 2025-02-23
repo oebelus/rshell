@@ -1,38 +1,56 @@
-mod shell;
-mod shfile;
 mod instruction;
 mod redirection;
 mod sherror;
+mod shfile;
+mod shell;
+mod completer;
 
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
-use std::path::Path;
 use std::{env::{current_dir, set_current_dir}, process::{exit, Command}};
-use shfile::{executable_exists, is_executable};
+use completer::CommandCompleter;
+use rustyline::Editor;
+use rustyline::error::ReadlineError;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::PathBuf;
-use sherror::ShellError;
-use sherror::get_error_message;
-use instruction::Output;
+use std::path::Path;
 
-use instruction::Instruction;
 use redirection::{find_redirection, RedirOp, RedirType, Redirection};
+use shfile::{executable_exists, is_executable};
+use sherror::{ShellError, get_error_message};
+use instruction::Instruction;
+use instruction::Output;
 use shell::Shell;
 
-fn main() {
+fn main() -> rustyline::Result<()> {
     let shell = Shell::new();
+    let mut editor = Editor::new()?;
+
+    editor.set_helper(Some(CommandCompleter { 
+        commands: shell.builtins.clone() 
+    }));
 
     loop {
-        print!("$ ");
-        io::stdout().flush().unwrap();
-
-        let stdin = io::stdin();
-        let mut input = String::new();
-        stdin.read_line(&mut input).unwrap();
-
-        let instruction = Instruction::new(input.trim());
-
-        execute_cmd(&instruction, &shell);
+        match editor.readline("$ ") {
+            Ok(line) => {
+                let instruction = Instruction::new(line.trim());
+                execute_cmd(&instruction, &shell);
+                let _ = editor.add_history_entry(line);
+            },
+            Err(ReadlineError::Interrupted) => {
+                println!("Use 'exit 0' to quit");
+            },
+            Err(ReadlineError::Eof) => {
+                println!("exit");
+                break;
+            },
+            Err(err) => {
+                eprintln!("Error: {:?}", err);
+                break;
+            }
+        }
     }
+
+    Ok(())
 }
 
 fn execute_cmd(instruction: &Instruction, shell: &Shell) {
@@ -101,7 +119,7 @@ fn handle_input(command: &str, arguments: Vec<String>, shell: &Shell) -> Result<
 
         "type" => {
             let command = &&arguments.join("");
-            if shell.builtins.contains(&command.as_str()) {
+            if shell.builtins.contains(&command) {
                 Ok(Output::String(String::from(format!("{} is a shell builtin", command))))
             }
             else { 

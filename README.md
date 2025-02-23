@@ -20,3 +20,5 @@ Currently, this Shell supports:
    - Redirect stderr;
    - Append stdout;
    - Append stderr;
+- Autocompletion:
+   - Builtin completion;
