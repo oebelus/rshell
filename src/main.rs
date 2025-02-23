@@ -26,7 +26,8 @@ fn main() -> rustyline::Result<()> {
     let mut editor = Editor::new()?;
 
     editor.set_helper(Some(CommandCompleter { 
-        commands: shell.builtins.clone() 
+        commands: shell.builtins.clone(),
+        path: shell.clone().environment["path"].to_string()
     }));
 
     loop {
