@@ -22,3 +22,4 @@ Currently, this Shell supports:
    - Append stderr;
 - Autocompletion:
    - Builtin completion;
+   - Completion with arguments;
