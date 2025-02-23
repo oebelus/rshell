@@ -23,3 +23,4 @@ Currently, this Shell supports:
 - Autocompletion:
    - Builtin completion;
    - Completion with arguments;
+   - Missing completions;
