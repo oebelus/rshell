@@ -25,3 +25,4 @@ Currently, this Shell supports:
    - Completion with arguments;
    - Missing completions;
    - Executable completion;
+   - Multiple completions;

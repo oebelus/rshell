@@ -25,10 +25,12 @@ fn main() -> rustyline::Result<()> {
     let shell = Shell::new();
     let mut editor = Editor::new()?;
 
-    editor.set_helper(Some(CommandCompleter { 
-        commands: shell.builtins.clone(),
-        path: shell.clone().environment["path"].to_string()
-    }));
+    editor.set_helper(Some(
+        CommandCompleter::new(
+            shell.builtins.clone(),
+            shell.clone().environment["path"].to_string()
+        )
+    ));
 
     loop {
         match editor.readline("$ ") {
