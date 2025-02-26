@@ -56,7 +56,7 @@ impl Completer for CommandCompleter {
         if words.is_empty() || (words.len() == 1 && !line.ends_with(' ')) {
             let partial = words.last().unwrap_or(&"");
 
-            let mut matches: Vec<String> = self.commands
+            let mut matches: HashSet<String> = self.commands
                 .iter()
                 .filter(|cmd| cmd.starts_with(partial))
                 .map(|s| format!("{} ", s))
@@ -68,11 +68,15 @@ impl Completer for CommandCompleter {
                     .filter(|cmd| cmd.starts_with(partial))
                     .map(|s| format!("{} ", s))
                     .collect();
+                    
             }
+
+            let mut matches: Vec<String> = matches.into_iter().collect();
+            matches.sort();
 
             match matches.len() {
                 0 => Ok((0, Vec::new())),
-                1 => Ok((0, matches.clone())),
+                1 => Ok((0, matches.clone().into_iter().collect())),
                 _ => {
                     let mut state = self.state.borrow_mut();
                     state.tab_count += 1;
