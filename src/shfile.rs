@@ -16,17 +16,16 @@ pub fn executable_exists(path: &str, command: &str) -> Result<String, ShellError
 }
 
 pub fn find_executables(path: &str, partial: &str) -> Vec<String> {
-    let directories = path.split(':');
-    let mut executables: Vec<String> = vec![];
+    let executables: Vec<String> = list_content(path);
+    let mut exec_completion = vec![];
 
-    for directory in directories {
-        let full_path = format!("{}/{}", directory, partial);
-        if full_path.contains(partial) {
-            
+    for executable in executables {
+        if executable.starts_with(partial) {
+            exec_completion.push(executable);
         }
     }
 
-    executables
+    exec_completion
 }
 
 pub fn is_executable(path: &str, command: &str) -> Result<String, bool> {
@@ -42,4 +41,20 @@ pub fn is_executable(path: &str, command: &str) -> Result<String, bool> {
         }
     }
     Err(false)
+}
+
+pub fn list_content(path: &str) -> Vec<String> {
+    let directories = path.split(':');
+
+    let output = Command::new("ls")
+        .args(directories)
+        .output()
+        .expect("IO Error");
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    stdout
+        .lines()
+        .map(|s| s.to_string())
+        .collect()
 }

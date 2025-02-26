@@ -24,3 +24,4 @@ Currently, this Shell supports:
    - Builtin completion;
    - Completion with arguments;
    - Missing completions;
+   - Executable completion;

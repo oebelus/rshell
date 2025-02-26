@@ -31,6 +31,10 @@ impl Completer for CommandCompleter {
 
             if matches.len() == 0 {
                 matches = find_executables(&self.path, partial)
+                    .iter()
+                    .filter(|cmd| cmd.starts_with(partial))
+                    .map(|s| format!("{} ", s))
+                    .collect();
             }
 
             Ok((0, matches))
