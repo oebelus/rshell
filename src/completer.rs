@@ -78,6 +78,12 @@ impl Completer for CommandCompleter {
                 0 => Ok((0, Vec::new())),
                 1 => Ok((0, matches.clone().into_iter().collect())),
                 _ => {
+                    let common_prefix = format!("{} ", common_prefix(matches.clone()));
+
+                    if !common_prefix.is_empty() && matches.contains(&common_prefix){
+                        return Ok((0, vec![common_prefix.trim().to_string()]));
+                    }
+
                     let mut state = self.state.borrow_mut();
                     state.tab_count += 1;
                     
@@ -105,4 +111,23 @@ impl Completer for CommandCompleter {
             Ok((pos, Vec::new()))
         }
     }
+}
+
+pub fn common_prefix(names: Vec<String>) -> String {
+    if names.is_empty() {
+        return String::new();
+    }
+
+    let mut prefix = names[0].clone();
+
+    for name in names.iter() {
+        while !name.starts_with(&prefix) {
+            if prefix.is_empty() {
+                return String::new();
+            }
+            prefix.pop();
+        }
+    }
+
+    prefix
 }

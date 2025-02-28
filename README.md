@@ -26,3 +26,4 @@ Currently, this Shell supports:
    - Missing completions;
    - Executable completion;
    - Multiple completions;
+   - Partial completions;
